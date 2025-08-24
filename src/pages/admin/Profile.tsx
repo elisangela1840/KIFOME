@@ -1,6 +1,7 @@
 
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { supabase } from '../../integrations/supabase/client';
 import { 
   ChefHat, 
   Utensils, 
@@ -15,11 +16,14 @@ import {
 import { Button } from '../../components/ui/button';
 import { useToast } from '../../hooks/use-toast';
 import { useIsMobile } from '../../hooks/use-mobile';
+import AdminSidebar from '../../components/admin/AdminSidebar';
 
 const Profile = () => {
   const { toast } = useToast();
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [restaurantData, setRestaurantData] = useState({
     name: 'Burger House',
     address: 'Rua das Flores, 123',
@@ -34,6 +38,45 @@ const Profile = () => {
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
   };
+
+  // Verificar autenticação
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (!session) {
+          navigate('/login');
+          return;
+        }
+
+        // Verificar se o usuário tem perfil (opcional por enquanto)
+        try {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('user_id', session.user.id)
+            .single();
+
+          if (profile && profile.role === 'admin') {
+            // Usuário é admin, permitir acesso
+          } else {
+            // Usuário não é admin, mas tem sessão - permitir acesso por enquanto
+            console.log('Usuário não é admin, mas permitindo acesso');
+          }
+        } catch (error) {
+          console.log('Erro ao verificar perfil, mas permitindo acesso:', error);
+        }
+
+        setLoading(false);
+      } catch (error) {
+        console.error('Erro na verificação de autenticação:', error);
+        navigate('/login');
+      }
+    };
+
+    checkAuth();
+  }, [navigate]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -52,90 +95,65 @@ const Profile = () => {
     });
   };
 
-  const handleLogout = () => {
-    toast({
-      title: "Logout realizado",
-      description: "Você foi desconectado com sucesso.",
-      variant: "default",
-    });
-    
-    // Redirecionar para a página inicial
-    setTimeout(() => {
-      window.location.href = '/';
-    }, 1500);
+  const handleLogout = async () => {
+    try {
+      // Fazer logout do Supabase
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        throw error;
+      }
+
+      toast({
+        title: "Logout realizado",
+        description: "Você foi desconectado com sucesso.",
+        variant: "default",
+      });
+      
+      // Redirecionar para a página inicial
+      setTimeout(() => {
+        navigate('/');
+      }, 1500);
+    } catch (error: any) {
+      toast({
+        title: "Erro no logout",
+        description: error.message || "Erro ao fazer logout",
+        variant: "destructive",
+      });
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-kifome-background">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-kifome-primary mx-auto mb-4"></div>
+          <p className="text-kifome-muted">Verificando página...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col md:flex-row h-screen bg-kifome-background">
-      {/* Mobile Header */}
-      {isMobile && (
-        <header className="flex items-center justify-between p-4 border-b border-kifome-border">
-          <div className="flex items-center">
-            <button onClick={toggleMenu} className="mr-3 focus:outline-none">
-              {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
-            </button>
-            <h1 className="text-xl font-bold text-kifome-primary">KIFOME</h1>
-          </div>
-          <Link to="/" className="text-kifome-muted hover:text-kifome-primary">
-            <Home size={18} />
-          </Link>
-        </header>
-      )}
-
-      {/* Sidebar - Shown on desktop or when toggled on mobile */}
-      {(!isMobile || isMenuOpen) && (
-        <div className={`${isMobile ? 'absolute z-20 w-64 h-full' : 'w-64'} border-r border-kifome-border bg-kifome-background flex flex-col`}>
-          <div className="p-4 border-b border-kifome-border">
-            <h1 className="text-xl font-bold text-kifome-primary">KIFOME</h1>
-            <p className="text-kifome-muted text-sm">Painel do Restaurante</p>
-          </div>
-          
-          <nav className="flex-1 p-4">
-            <ul className="space-y-1">
-              <li>
-                <Link 
-                  to="/admin/dashboard" 
-                  className="flex items-center text-kifome-text hover:text-kifome-primary p-2 rounded-md hover:bg-kifome-border hover:bg-opacity-20"
-                  onClick={() => isMobile && setIsMenuOpen(false)}
-                >
-                  <ChefHat size={18} className="mr-2" />
-                  Dashboard
-                </Link>
-              </li>
-              <li>
-                <Link 
-                  to="/admin/dashboard" 
-                  className="flex items-center text-kifome-text hover:text-kifome-primary p-2 rounded-md hover:bg-kifome-border hover:bg-opacity-20"
-                  onClick={() => isMobile && setIsMenuOpen(false)}
-                >
-                  <Utensils size={18} className="mr-2" />
-                  Cardápio
-                </Link>
-              </li>
-              <li>
-                <Link 
-                  to="/admin/profile" 
-                  className="flex items-center text-kifome-primary bg-kifome-border bg-opacity-20 p-2 rounded-md"
-                  onClick={() => isMobile && setIsMenuOpen(false)}
-                >
-                  <Users size={18} className="mr-2" />
-                  Perfil
-                </Link>
-              </li>
-            </ul>
-          </nav>
-          
-          <div className="p-4 border-t border-kifome-border">
-            <button 
-              className="flex items-center text-kifome-text hover:text-kifome-primary w-full p-2 rounded-md hover:bg-kifome-border hover:bg-opacity-20"
-              onClick={handleLogout}
-            >
-              <LogOut size={18} className="mr-2" />
-              Sair
-            </button>
-          </div>
+      {/* Mobile Header with Sidebar Toggle */}
+      <div className="md:hidden flex items-center justify-between p-4 border-b border-kifome-border">
+        <div className="flex items-center">
+          <button 
+            onClick={toggleMenu}
+            className="text-kifome-text mr-3"
+          >
+            {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+          </button>
+          <h1 className="text-xl font-bold text-kifome-primary">KIFOME</h1>
         </div>
-      )}
+        <Link to="/" className="text-kifome-muted hover:text-kifome-primary">
+          <Home size={18} />
+        </Link>
+      </div>
+      
+      {/* Sidebar Component */}
+      <AdminSidebar sidebarOpen={isMenuOpen} toggleSidebar={toggleMenu} />
       
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">

@@ -17,14 +17,29 @@ const Login = () => {
   useEffect(() => {
     // Verificar se o usuário já está logado
     const checkUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        navigate('/admin/dashboard');
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          // Verificar se o usuário tem perfil
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('is_first_access, role')
+            .eq('user_id', session.user.id)
+            .single();
+
+          if (profile?.is_first_access && profile.role === 'client') {
+            navigate('/setup');
+          } else {
+            navigate('/admin/dashboard');
+          }
+        }
+      } catch (error) {
+        console.error('Erro ao verificar usuário:', error);
+        // Se houver erro, não redirecionar - deixar na página de login
       }
     };
+    
     checkUser();
-
-
   }, [navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {

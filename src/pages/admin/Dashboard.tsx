@@ -1,6 +1,7 @@
 
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { supabase } from '../../integrations/supabase/client';
 import { 
   Menu,
   Home,
@@ -18,11 +19,52 @@ import { initialMenuItems } from '../../data/initialMenuItems';
 const Dashboard = () => {
   const [menuItems, setMenuItems] = useState<MenuItem[]>(initialMenuItems);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
 
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
   };
+
+  // Verificar autenticação
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (!session) {
+          navigate('/login');
+          return;
+        }
+
+        // Verificar se o usuário tem perfil (opcional por enquanto)
+        try {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('user_id', session.user.id)
+            .single();
+
+          if (profile && profile.role === 'admin') {
+            // Usuário é admin, permitir acesso
+          } else {
+            // Usuário não é admin, mas tem sessão - permitir acesso por enquanto
+            console.log('Usuário não é admin, mas permitindo acesso');
+          }
+        } catch (error) {
+          console.log('Erro ao verificar perfil, mas permitindo acesso:', error);
+        }
+
+        setLoading(false);
+      } catch (error) {
+        console.error('Erro na verificação de autenticação:', error);
+        navigate('/login');
+      }
+    };
+
+    checkAuth();
+  }, [navigate]);
 
   const handleAddItem = (newItem: {
     name: string;
@@ -43,6 +85,17 @@ const Dashboard = () => {
       }
     ]);
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-kifome-background">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-kifome-primary mx-auto mb-4"></div>
+          <p className="text-kifome-muted">Carregando página...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col md:flex-row h-screen bg-kifome-background">

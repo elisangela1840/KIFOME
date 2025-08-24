@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { 
   Utensils, 
   ChefHat, 
@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '../../hooks/use-toast';
 import { useIsMobile } from '../../hooks/use-mobile';
+import { supabase } from '../../integrations/supabase/client';
 
 interface AdminSidebarProps {
   sidebarOpen: boolean;
@@ -20,18 +21,35 @@ interface AdminSidebarProps {
 const AdminSidebar: React.FC<AdminSidebarProps> = ({ sidebarOpen, toggleSidebar }) => {
   const { toast } = useToast();
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  const handleLogout = () => {
-    toast({
-      title: "Logout realizado",
-      description: "Você foi desconectado com sucesso.",
-      variant: "default",
-    });
-    
-    // Redirecionar para a página inicial
-    setTimeout(() => {
-      window.location.href = '/';
-    }, 1500);
+  const handleLogout = async () => {
+    try {
+      // Fazer logout do Supabase
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        throw error;
+      }
+
+      toast({
+        title: "Logout realizado",
+        description: "Você foi desconectado com sucesso.",
+        variant: "default",
+      });
+      
+      // Redirecionar para a página inicial
+      setTimeout(() => {
+        navigate('/');
+      }, 1500);
+    } catch (error: any) {
+      toast({
+        title: "Erro no logout",
+        description: error.message || "Erro ao fazer logout",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -71,7 +89,11 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ sidebarOpen, toggleSidebar 
             <li>
               <Link 
                 to="/admin/dashboard" 
-                className="flex items-center text-kifome-text hover:text-kifome-primary p-2 rounded-md hover:bg-kifome-border hover:bg-opacity-20"
+                className={`flex items-center p-2 rounded-md hover:bg-kifome-border hover:bg-opacity-20 ${
+                  location.pathname === '/admin/dashboard' 
+                    ? 'text-kifome-primary bg-kifome-border bg-opacity-20' 
+                    : 'text-kifome-text hover:text-kifome-primary'
+                }`}
                 onClick={isMobile ? toggleSidebar : undefined}
               >
                 <ChefHat size={18} className="mr-2" />
@@ -81,7 +103,11 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ sidebarOpen, toggleSidebar 
             <li>
               <Link 
                 to="/admin/dashboard" 
-                className="flex items-center text-kifome-primary bg-kifome-border bg-opacity-20 p-2 rounded-md"
+                className={`flex items-center p-2 rounded-md hover:bg-kifome-border hover:bg-opacity-20 ${
+                  location.pathname === '/admin/dashboard' 
+                    ? 'text-kifome-primary bg-kifome-border bg-opacity-20' 
+                    : 'text-kifome-text hover:text-kifome-primary'
+                }`}
                 onClick={isMobile ? toggleSidebar : undefined}
               >
                 <Utensils size={18} className="mr-2" />
@@ -91,7 +117,11 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ sidebarOpen, toggleSidebar 
             <li>
               <Link 
                 to="/admin/profile" 
-                className="flex items-center text-kifome-text hover:text-kifome-primary p-2 rounded-md hover:bg-kifome-border hover:bg-opacity-20"
+                className={`flex items-center p-2 rounded-md hover:bg-kifome-border hover:bg-opacity-20 ${
+                  location.pathname === '/admin/profile' 
+                    ? 'text-kifome-primary bg-kifome-border bg-opacity-20' 
+                    : 'text-kifome-text hover:text-kifome-primary'
+                }`}
                 onClick={isMobile ? toggleSidebar : undefined}
               >
                 <Users size={18} className="mr-2" />
